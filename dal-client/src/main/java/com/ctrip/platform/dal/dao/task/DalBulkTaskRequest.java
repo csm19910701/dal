@@ -89,13 +89,13 @@ public class DalBulkTaskRequest<K, T> implements DalRequest<K>{
 		handleKeyHolder(false);
 
 		// If only one shard is shuffled
-		if(shuffled != null) {
-			if(shuffled.size() == 0)
-				return new BulkTaskCallable<>(logicDbName, rawTableName, hints, new HashMap<Integer, Map<String, ?>>(), task, (DalBulkTaskContext<T>) taskContext.fork());
-
-			String shard = shuffled.keySet().iterator().next();
-			return new BulkTaskCallable<>(logicDbName, rawTableName, hints.inShard(shard), shuffled.get(shard), task, (DalBulkTaskContext<T>) taskContext.fork());
-		}
+//		if(shuffled != null) {
+//			if(shuffled.size() == 0)
+//				return new BulkTaskCallable<>(logicDbName, rawTableName, hints, new HashMap<Integer, Map<String, ?>>(), task, (DalBulkTaskContext<T>) taskContext.fork());
+//
+//			String shard = shuffled.keySet().iterator().next();
+//			return new BulkTaskCallable<>(logicDbName, rawTableName, hints.inShard(shard), shuffled.get(shard), task, (DalBulkTaskContext<T>) taskContext.fork());
+//		}
 	
 		// Convert to index map
 		Map<Integer, Map<String, ?>> daoPojosMap = new HashMap<>();
@@ -163,11 +163,11 @@ public class DalBulkTaskRequest<K, T> implements DalRequest<K>{
 			if(shaffled.isEmpty())
 			    return task.getEmptyValue();
 			
-			if(isTableShardingEnabled(logicDbName, rawTableName)) {
-				return executeByTableShards();
-			}else{
+//			if(isTableShardingEnabled(logicDbName, rawTableName)) {
+//				return executeByTableShards();
+//			}else{
 				return execute(hints, shaffled, taskContext);
-			}
+//			}
 		}
 
 		private K execute(DalHints hints, Map<Integer, Map<String, ?>> pojosInShard, DalBulkTaskContext<T> taskContext) throws SQLException {

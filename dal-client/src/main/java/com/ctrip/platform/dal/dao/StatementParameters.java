@@ -3,13 +3,13 @@ package com.ctrip.platform.dal.dao;
 import java.util.*;
 import java.util.List;
 
+import com.ctrip.framework.dal.cluster.client.parameter.NamedSqlParameters;
 import com.ctrip.platform.dal.common.enums.ParameterDirection;
 import com.ctrip.platform.dal.common.enums.ParametersType;
 import com.ctrip.platform.dal.exceptions.DalRuntimeException;
 
-public class StatementParameters {
+public class StatementParameters implements NamedSqlParameters {
 	private static final String SQLHIDDENString = "*";
-
 	private List<StatementParameter> parameters = new LinkedList<StatementParameter>();
 	private List<StatementParameter> resultParameters=new LinkedList<StatementParameter>();
 	private Set<Integer> parametersIndexSet = new HashSet<>();
@@ -403,8 +403,30 @@ public class StatementParameters {
 		return existingParametersType;
 	}
 
-	/*enum ParametersType {
-		noIndex,
-		index
-	}*/
+	@Override
+	public Object getParamValue(String paramName) {
+		for(StatementParameter parameter:parameters){
+			if(parameter.getName().equalsIgnoreCase(paramName))
+				return parameter;
+		}
+		throw new DalRuntimeException("paramName not exist!");
+	}
+
+	@Override
+	public int getSqlType(String paramName) {
+		for(StatementParameter parameter:parameters){
+			if(parameter.getName().equalsIgnoreCase(paramName))
+				return parameter.getSqlType();
+		}
+		throw new DalRuntimeException("paramName not exist!");
+	}
+
+	@Override
+	public Set<String> getParamNames() {
+		Set<String> paramNames=new HashSet<>();
+		for(StatementParameter parameter:parameters){
+			paramNames.add(parameter.getName());
+		}
+		return paramNames;
+	}
 }

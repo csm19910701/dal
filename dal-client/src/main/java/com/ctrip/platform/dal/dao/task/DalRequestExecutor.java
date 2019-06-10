@@ -116,10 +116,12 @@ public class DalRequestExecutor {
 //			request.validate();
 			request.validateAndPrepare();
 			
-			if(request.isCrossShard())
-				result = crossShardExecute(logContext, hints, request);
-			else
-				result = nonCrossShardExecute(logContext, hints, request);
+//			if(request.isCrossShard())
+//				result = crossShardExecute(logContext, hints, request);
+//			else
+//				result = nonCrossShardExecute(logContext, hints, request);
+
+			result = execute(logContext, hints, request);
 
 			if(result == null && !nullable)
 				throw new DalException(ErrorCode.AssertNull);
@@ -136,6 +138,12 @@ public class DalRequestExecutor {
 			throw DalException.wrap(error);
 		
 		return result;
+	}
+
+	private <T> T execute(LogContext logContext, DalHints hints, DalRequest<T> request) throws Exception {
+		logContext.setSingleTask(true);
+		Callable<T> task = new RequestTaskWrapper<T>(NA, request.createTask(), logContext);
+		return task.call();
 	}
 
 	private <T> T nonCrossShardExecute(LogContext logContext, DalHints hints, DalRequest<T> request) throws Exception {

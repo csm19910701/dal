@@ -80,7 +80,7 @@ public class DalSingleTaskRequest<T> implements DalRequest<int[]> {
             ((InsertTaskAdapter) task).processIdentityField(hints, daoPojos);
         }
 
-        detectDistributedTransaction(logicDbName, hints, daoPojos);
+//        detectDistributedTransaction(logicDbName, hints, daoPojos);
         dalTaskContext = task.createTaskContext();
     }
 

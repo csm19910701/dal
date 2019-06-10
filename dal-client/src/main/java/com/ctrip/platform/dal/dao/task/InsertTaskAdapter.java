@@ -1,5 +1,6 @@
 package com.ctrip.platform.dal.dao.task;
 
+import java.math.BigInteger;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
@@ -184,5 +185,59 @@ public class InsertTaskAdapter<T> extends TaskAdapter<T> {
 		Map<String, Object> key = new HashMap<>();
 		key.put(identityFieldName, identityFieldValue);
 		return key;
+	}
+
+	protected List<Map<String, Object>> getFinalGeneratedKeys(List<Map<String, Object>> dbReturnedKeyFields,
+															List<Map<String, Object>> presetKeyFields, int pojosCount) {
+
+//        invoke dalclient.update directly
+		if (pojosCount == 0)
+			return dbReturnedKeyFields;
+
+//        not autoIncrement key or autoIncrement key and no value
+		if (null == presetKeyFields || presetKeyFields.size() == 0) {
+			//  maybe replace conflict
+			if (null == dbReturnedKeyFields || (dbReturnedKeyFields.size() != pojosCount))
+				return null;
+			//  no conflict
+			return dbReturnedKeyFields;
+		}
+
+		List<Map<String, Object>> returnedKeyFields = new ArrayList<>();
+
+//        autoIncrement key with user value ,  driver returned empty generated keys because of conflict
+//        we use user's key
+		if (null == dbReturnedKeyFields || dbReturnedKeyFields.size() == 0) {
+			returnedKeyFields.addAll(presetKeyFields);
+			return returnedKeyFields;
+		}
+
+//        autoIncrement key with user value ,  driver returned not empty generated keys
+//        we use the value of user's key but the type of dbReturnedKeyFields
+		Map<String, Object> dbReturnedKeyField = dbReturnedKeyFields.get(0);
+		String keyName = dbReturnedKeyField.keySet().iterator().next();
+		Object dbReturnedKey = dbReturnedKeyField.values().iterator().next();
+		Class<?> clazz = dbReturnedKey.getClass();
+
+		for (int i = 0; i < presetKeyFields.size(); i++) {
+			Map<String, Object> presetKeyField = presetKeyFields.get(i);
+			Number presetKey = (Number) presetKeyField.values().iterator().next();
+			Object returnedKey = presetKey;
+			if (clazz.equals(Byte.class) || clazz.equals(byte.class)) {
+				returnedKey = presetKey.byteValue();
+			} else if (clazz.equals(Short.class) || clazz.equals(short.class)) {
+				returnedKey = presetKey.shortValue();
+			} else if (clazz.equals(Integer.class) || clazz.equals(int.class)) {
+				returnedKey = presetKey.intValue();
+			} else if (clazz.equals(Long.class) || clazz.equals(long.class)) {
+				returnedKey = presetKey.longValue();
+			} else if (clazz.equals(BigInteger.class)) {
+				returnedKey = BigInteger.valueOf(presetKey.longValue());
+			}
+			Map<String, Object> field = new HashMap<>();
+			field.put(keyName, returnedKey);
+			returnedKeyFields.add(field);
+		}
+		return returnedKeyFields;
 	}
 }

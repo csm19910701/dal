@@ -15,8 +15,8 @@ public abstract class AbstractIntArrayBulkTask<T> extends TaskAdapter<T> impleme
 	@Override
 	public BulkTaskContext<T> createTaskContext(DalHints hints, List<Map<String, ?>> daoPojos, List<T> rawPojos) throws DalException {
 		BulkTaskContext context = new BulkTaskContext<T>(rawPojos);
-		if (context instanceof DalContextConfigure)
-			context.setShardingCategory(shardingCategory);
+//		if (context instanceof DalContextConfigure)
+//			context.setShardingCategory(shardingCategory);
 		return context;
 	}
 	

@@ -34,8 +34,8 @@ public class BatchUpdateTask<T> extends AbstractIntArrayBulkTask<T> {
 
 		taskContext.setPojoFieldStatus(pojoFieldStatus);
 
-		if (taskContext instanceof DalContextConfigure)
-			taskContext.setShardingCategory(shardingCategory);
+//		if (taskContext instanceof DalContextConfigure)
+//			taskContext.setShardingCategory(shardingCategory);
 
 		return taskContext;
 	}
