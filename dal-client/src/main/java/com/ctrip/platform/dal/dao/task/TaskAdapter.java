@@ -58,8 +58,8 @@ public class TaskAdapter<T> extends BaseTaskAdapter implements DaoTask<T> {
 		super.initialize(parser.getDatabaseName());
 		this.parser = parser;
 		rawTableName = parser.getTableName();
-		tableShardingEnabled = isTableShardingEnabled(logicDbName, rawTableName);
-		initShardingCategory();
+//		tableShardingEnabled = isTableShardingEnabled(logicDbName, rawTableName);
+//		initShardingCategory();
 		initColumnTypes();
 		dbCategory = getDatabaseSet(logicDbName).getDatabaseCategory();
 		initDbSpecific();

@@ -14,6 +14,7 @@ import java.util.Set;
 import javax.persistence.Entity;
 import javax.xml.parsers.DocumentBuilderFactory;
 
+import com.ctrip.framework.dal.cluster.client.Cluster;
 import com.ctrip.platform.dal.dao.annotation.Database;
 import com.ctrip.platform.dal.dao.helper.ClassScanFilter;
 import com.ctrip.platform.dal.dao.helper.ClassScanner;
@@ -105,13 +106,14 @@ public class DalConfigureFactory implements DalConfigConstants {
                 readComponent(root, CONNECTION_LOCATOR, new DefaultDalConnectionLocator(), LOCATOR);
 
         Map<String, DatabaseSet> databaseSets = readDatabaseSets(getChildNode(root, DATABASE_SETS));
+        Map<String, ClusterNode> clusterNodes =readClusterNodes(getChildNode(root,DATABASE_SETS));
 
         locator.setup(getAllDbNames(databaseSets));
 
         DatabaseSelector selector =
                 readComponent(root, DATABASE_SELECTOR, new DefaultDatabaseSelector(), SELECTOR);
 
-        return new DalConfigure(name, databaseSets, logger, locator, factory, selector);
+        return new DalConfigure(name, databaseSets, clusterNodes, logger, locator, factory, selector);
     }
 
     private Set<String> getAllDbNames(Map<String, DatabaseSet> databaseSets) {
@@ -186,6 +188,23 @@ public class DalConfigureFactory implements DalConfigConstants {
             break;
         }
         return found;
+    }
+
+    private Map<String, ClusterNode> readClusterNodes(Node databaseSetsNode) throws Exception {
+        List<Node> clusterList = getChildNodes(databaseSetsNode, CLUSTER);
+        Map<String, ClusterNode> clusters = new HashMap<>();
+        for (int i = 0; i < clusterList.size(); i++) {
+            ClusterNode clusterNode = readClusterNode(clusterList.get(i));
+            clusters.put(clusterNode.getName(), clusterNode);
+        }
+        return clusters;
+    }
+
+    private ClusterNode readClusterNode(Node clusterNode) throws Exception {
+
+        checkAttribte(clusterNode, NAME);
+
+        return new ClusterNode(getAttribute(clusterNode, NAME));
     }
 
     private Map<String, DatabaseSet> readDatabaseSets(Node databaseSetsNode) throws Exception {

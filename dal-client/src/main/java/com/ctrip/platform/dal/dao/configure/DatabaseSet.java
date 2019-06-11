@@ -8,13 +8,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.ctrip.framework.dal.cluster.client.Cluster;
+import com.ctrip.framework.dal.cluster.client.cluster.ClusterConfig;
+import com.ctrip.framework.dal.cluster.client.cluster.DefaultCluster;
+import com.ctrip.framework.dal.cluster.client.config.DatabaseRole;
+import com.ctrip.framework.dal.cluster.client.database.SimpleDatabaseImpl;
+import com.ctrip.framework.dal.cluster.client.shard.DatabaseShard;
+import com.ctrip.framework.dal.cluster.client.shard.DatabaseShardImpl;
 import com.ctrip.platform.dal.common.enums.DatabaseCategory;
 import com.ctrip.platform.dal.dao.strategy.DalShardingStrategy;
 import com.ctrip.platform.dal.dao.strategy.ShardColModShardStrategy;
 import com.ctrip.platform.dal.exceptions.DalException;
 import com.ctrip.platform.dal.sharding.idgen.IIdGeneratorConfig;
 
-public class DatabaseSet {
+public class DatabaseSet implements ClusterConfig {
     private static final String CLASS = "class";
     private static final String ENTRY_SEPARATOR = ";";
     private static final String KEY_VALUE_SEPARATOR = "=";
@@ -202,4 +209,33 @@ public class DatabaseSet {
         return idGenConfig;
     }
 
+
+    public Cluster generateCluster(){
+        DefaultCluster cluster = new DefaultCluster(this);
+        DatabaseShardImpl shard = new DatabaseShardImpl(0);
+
+        if(isShardingSupported()) {
+            for (Map.Entry<String, List<DataBase>> entry : masterDbByShard.entrySet()) {
+                shard = new DatabaseShardImpl(Integer.parseInt(entry.getKey()));
+                for (DataBase dataBase : entry.getValue())
+                    shard.addDatabase(new SimpleDatabaseImpl(DatabaseRole.MASTER, dataBase.getConnectionString()));
+            }
+
+            for (Map.Entry<String, List<DataBase>> entry : slaveDbByShard.entrySet()) {
+                shard = new DatabaseShardImpl(Integer.parseInt(entry.getKey()));
+                for (DataBase dataBase : entry.getValue())
+                    shard.addDatabase(new SimpleDatabaseImpl(DatabaseRole.SLAVE, dataBase.getConnectionString()));
+            }
+        }else {
+            for(DataBase dataBase:masterDbs){
+                shard.addDatabase(new SimpleDatabaseImpl(DatabaseRole.MASTER,dataBase.getConnectionString()));
+            }
+            for(DataBase dataBase:slaveDbs){
+                shard.addDatabase(new SimpleDatabaseImpl(DatabaseRole.SLAVE,dataBase.getConnectionString()));
+            }
+        }
+
+        cluster.addDatabaseShard(shard);
+        return cluster;
+    }
 }

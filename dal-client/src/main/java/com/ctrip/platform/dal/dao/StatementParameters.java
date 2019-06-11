@@ -407,7 +407,7 @@ public class StatementParameters implements NamedSqlParameters {
 	public Object getParamValue(String paramName) {
 		for(StatementParameter parameter:parameters){
 			if(parameter.getName().equalsIgnoreCase(paramName))
-				return parameter;
+				return parameter.getValue();
 		}
 		throw new DalRuntimeException("paramName not exist!");
 	}

@@ -2,7 +2,8 @@ package com.ctrip.platform.dal.dao.task;
 
 
 import com.ctrip.framework.dal.cluster.client.Cluster;
-import com.ctrip.framework.dal.cluster.client.cluster.DefaultClusterManager;
+
+import com.ctrip.framework.dal.cluster.client.DefaultClusterManager;
 import com.ctrip.platform.dal.common.enums.ShardingCategory;
 import com.ctrip.platform.dal.dao.*;
 import java.sql.SQLException;
@@ -21,8 +22,8 @@ public class BaseTaskAdapter {
     public void initialize(String logicDbName) {
         this.logicDbName=logicDbName;
         this.client = DalClientFactory.getClient(logicDbName);
-        this.cluster = new DefaultClusterManager().getCluster(logicDbName);
-        shardingEnabled = isShardingEnabled(logicDbName);
+        this.cluster = DalClientFactory.getCluster("clusterTest");
+//        shardingEnabled = isShardingEnabled(logicDbName);
 //        initShardingCategory();
     }
 

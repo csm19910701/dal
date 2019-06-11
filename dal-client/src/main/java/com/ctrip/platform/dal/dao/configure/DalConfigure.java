@@ -7,6 +7,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
 
+import com.ctrip.framework.dal.cluster.client.ClusterManager;
+import com.ctrip.framework.dal.cluster.client.DefaultClusterManager;
+import com.ctrip.framework.dal.cluster.client.config.DefaultClusterDefinition;
 import com.ctrip.platform.dal.common.enums.DatabaseCategory;
 import com.ctrip.platform.dal.dao.client.DalConnectionLocator;
 import com.ctrip.platform.dal.dao.client.DalLogger;
@@ -28,8 +31,9 @@ public class DalConfigure {
     private static final int CORE_POOL_SIZE = 100;
     private static final int MAX_POOL_SIZE = 100;
     private static final long KEEP_ALIVE_TIME = 1L;
+    private ClusterManager clusterManager = new DefaultClusterManager();
 
-    public DalConfigure(String name, Map<String, DatabaseSet> databaseSets, DalLogger dalLogger,
+    public DalConfigure(String name, Map<String, DatabaseSet> databaseSets, Map<String, ClusterNode> clusters, DalLogger dalLogger,
             DalConnectionLocator locator, DalTaskFactory factory, DatabaseSelector selector) {
         this.name = name;
         this.databaseSets.putAll(databaseSets);
@@ -38,6 +42,13 @@ public class DalConfigure {
         this.factory = factory;
         this.selector = selector;
         initExecutorService();
+        for(String databaseSetName:databaseSets.keySet()) {
+            clusterManager.define(new DatabaseSetDefinition(databaseSetName));
+        }
+        for(String clusterName:clusters.keySet()) {
+            clusterManager.define(new DefaultClusterDefinition(clusterName));
+        }
+        clusterManager.start();
     }
 
     private void initExecutorService() {
@@ -45,6 +56,11 @@ public class DalConfigure {
                                           new LinkedBlockingQueue<Runnable>(),
                                           new CustomThreadFactory("WarmUpConnections"));
         executor.allowCoreThreadTimeOut(true);
+    }
+
+
+    public ClusterManager getClusterManager() {
+        return clusterManager;
     }
 
     public String getName() {

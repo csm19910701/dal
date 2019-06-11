@@ -2,6 +2,7 @@ package com.ctrip.platform.dal.dao;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.ctrip.framework.dal.cluster.client.Cluster;
 import com.ctrip.platform.dal.dao.helper.DalElementFactory;
 import com.ctrip.platform.dal.dao.log.Callback;
 import com.ctrip.platform.dal.dao.log.DalLogTypes;
@@ -123,6 +124,18 @@ public class DalClientFactory {
         config.getDatabaseSet(logicDbName);
 
         return new DalDirectClient(config, logicDbName);
+    }
+
+    public static Cluster getCluster(String clusterName) {
+        if (clusterName == null)
+            throw new NullPointerException("Cluster name can not be null");
+
+        DalConfigure config = getDalConfigure();
+
+//        // Verify if it is existed
+//        config.getDatabaseSet(logicDbName);
+
+        return config.getClusterManager().getCluster(clusterName);
     }
 
     public static DalConfigure getDalConfigure() {

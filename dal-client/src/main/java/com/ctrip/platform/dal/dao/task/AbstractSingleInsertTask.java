@@ -52,7 +52,7 @@ public abstract class AbstractSingleInsertTask<T> extends InsertTaskAdapter<T> i
         addParameters(parameters, fields);
 
         if (generatedKeyHolder == null)
-            return cluster.insert(logicDbName, parameters);
+            return cluster.insert(rawTableName, parameters);
 
         else {
             ClusterKeyHolder keyHolder = new ClusterKeyHolder();
