@@ -1,5 +1,6 @@
 package com.ctrip.platform.dal.dao.configure;
 
+import com.ctrip.framework.dal.cluster.client.datasource.DataSourceConfig;
 import com.ctrip.platform.dal.common.enums.DatabaseCategory;
 import com.ctrip.platform.dal.dao.helper.EncryptionHelper;
 
@@ -9,7 +10,7 @@ import java.util.Properties;
 import java.util.Set;
 
 public class DataSourceConfigure
-        implements DataSourceConfigureConstants, ConnectionStringConfigure, PoolPropertiesConfigure {
+        implements DataSourceConfigureConstants, ConnectionStringConfigure, PoolPropertiesConfigure, DataSourceConfig {
     private String name;
     private Properties properties = new Properties();
     private String version;
@@ -61,6 +62,11 @@ public class DataSourceConfigure
         return getProperty(USER_NAME);
     }
 
+    @Override
+    public String getUsername() {
+        return getUserName();
+    }
+
     public void setUserName(String userName) {
         setProperty(USER_NAME, userName);
     }
@@ -86,6 +92,11 @@ public class DataSourceConfigure
     @Override
     public String getDriverClass() {
         return getProperty(DRIVER_CLASS_NAME);
+    }
+
+    @Override
+    public String getDriverClassName() {
+        return getDriverClass();
     }
 
     public void setDriverClass(String driverClass) {
