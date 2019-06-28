@@ -3,6 +3,7 @@ package com.ctrip.platform.dal.dao.helper;
 import java.sql.SQLException;
 import java.util.*;
 
+import com.ctrip.framework.dal.cluster.client.Cluster;
 import com.ctrip.platform.dal.dao.DalClientFactory;
 import com.ctrip.platform.dal.dao.DalHints;
 import com.ctrip.platform.dal.dao.StatementParameters;
@@ -34,6 +35,10 @@ public class DalShardingHelper {
 
     public static DatabaseSet getDatabaseSet(String logicDbName) {
         return DalClientFactory.getDalConfigure().getDatabaseSet(logicDbName);
+    }
+
+    public static Cluster getCluster(String logicDbName) {
+        return DalClientFactory.getDalConfigure().getClusterManager().getCluster(logicDbName);
     }
 
     /**

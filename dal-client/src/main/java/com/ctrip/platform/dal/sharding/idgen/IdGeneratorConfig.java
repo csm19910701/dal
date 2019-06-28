@@ -1,5 +1,6 @@
 package com.ctrip.platform.dal.sharding.idgen;
 
+import com.ctrip.framework.dal.cluster.client.exception.UndefinedIdGeneratorException;
 import com.ctrip.platform.dal.dao.annotation.Database;
 import com.ctrip.platform.dal.dao.helper.ClassScanFilter;
 import com.ctrip.platform.dal.dao.helper.DalClassScanner;
@@ -127,4 +128,8 @@ public class IdGeneratorConfig implements IIdGeneratorConfig {
         return entityClazz.getSimpleName();
     }
 
+    @Override
+    public Number getSequenceId(String tableName) throws UndefinedIdGeneratorException {
+        return getIdGenerator(tableName).nextId();
+    }
 }

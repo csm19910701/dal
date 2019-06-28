@@ -1,10 +1,7 @@
 package com.ctrip.platform.dal.dao.task;
 
-import com.ctrip.framework.dal.cluster.client.ClusterKeyHolder;
-import com.ctrip.framework.dal.cluster.client.parameter.NamedSqlParameters;
 import com.ctrip.platform.dal.dao.DalContextClient;
 import com.ctrip.platform.dal.dao.DalHints;
-import com.ctrip.platform.dal.dao.KeyHolder;
 import com.ctrip.platform.dal.dao.StatementParameters;
 import com.ctrip.platform.dal.exceptions.DalRuntimeException;
 
@@ -24,22 +21,19 @@ public abstract class AbstractCombinedInsertTask<T> extends InsertTaskAdapter<T>
 
     @Override
     public Integer execute(DalHints hints, Map<Integer, Map<String, ?>> daoPojos, DalBulkTaskContext<T> taskContext) throws SQLException {
-        final KeyHolder generatedKeyHolder = hints.getKeyHolder();
-
-//        StringBuilder values = new StringBuilder();
+        StatementParameters parameters = new StatementParameters();
+        StringBuilder values = new StringBuilder();
 
         Set<String> unqualifiedColumns = taskContext.getUnqualifiedColumns();
 
-        NamedSqlParameters[] namedSqlParameters=new NamedSqlParameters[daoPojos.size()];
-
         List<String> finalInsertableColumns = buildValidColumnsForInsert(unqualifiedColumns);
 
-//        String insertColumns = combineColumns(finalInsertableColumns, COLUMN_SEPARATOR);
+        String insertColumns = combineColumns(finalInsertableColumns, COLUMN_SEPARATOR);
 
         List<Map<String, Object>> identityFields = new ArrayList<>();
 
-//        int startIndex = 1;
-        for (Integer index : daoPojos.keySet()) {
+        int startIndex = 1;
+        for (Integer index :daoPojos.keySet()) {
             Map<String, ?> pojo = daoPojos.get(index);
             removeUnqualifiedColumns(pojo, unqualifiedColumns);
 
@@ -47,9 +41,10 @@ public abstract class AbstractCombinedInsertTask<T> extends InsertTaskAdapter<T>
             if (identityField != null) {
                 identityFields.add(identityField);
             }
-            StatementParameters parameters = new StatementParameters();
-            addParameters(parameters, pojo, finalInsertableColumns.toArray(new String[finalInsertableColumns.size()]));
-            namedSqlParameters[index] = parameters;
+
+            int paramCount = addParameters(startIndex, parameters, pojo, finalInsertableColumns);
+            startIndex += paramCount;
+            values.append(String.format("(%s),", combine("?", paramCount, ",")));
         }
 
         // Put identityFields and pojos count into context
@@ -58,47 +53,20 @@ public abstract class AbstractCombinedInsertTask<T> extends InsertTaskAdapter<T>
             ((DefaultTaskContext) taskContext).setPojosCount(daoPojos.size());
         }
 
-//        String tableName = getRawTableName(hints);
-//        if (taskContext instanceof DalContextConfigure) {
-//            ((DalContextConfigure) taskContext).addTables(tableName);
-//            ((DalContextConfigure) taskContext).setShardingCategory(shardingCategory);
-//        }
-//
-//        String sql = String.format(getSqlTpl(),
-//                quote(tableName), insertColumns,
-//                values.substring(0, values.length() - 2) + ")");
-//
-//        if (client instanceof DalContextClient)
-//            return ((DalContextClient) client).update(sql, parameters, hints, taskContext);
-//        else
-//            throw new DalRuntimeException("The client is not instance of DalClient");
-        if(generatedKeyHolder==null)
-            return cluster.combinedInsert(logicDbName,namedSqlParameters);
-
-        else {
-            ClusterKeyHolder keyHolder = new ClusterKeyHolder();
-            int rows = cluster.combinedInsert(rawTableName, namedSqlParameters, keyHolder);
-
-
-            int pojosCount = 0;
-            List<Map<String, Object>> presetKeys = null;
-            List<Map<String, Object>> dbReturnedKeys = null;
-            if (taskContext != null) {
-                pojosCount = taskContext.getPojosCount();
-                presetKeys = taskContext.getIdentityFields();
-            }
-
-            dbReturnedKeys = keyHolder.getKeyList();
-
-            int actualKeySize = 0;
-            List<Map<String, Object>> returnedKeys = getFinalGeneratedKeys(dbReturnedKeys, presetKeys, pojosCount);
-            if (returnedKeys != null) {
-                generatedKeyHolder.addKeys(returnedKeys);
-                actualKeySize = returnedKeys.size();
-            }
-            generatedKeyHolder.addEmptyKeys(pojosCount - actualKeySize);
-            return rows;
+        String tableName = getRawTableName(hints);
+        if (taskContext instanceof DalContextConfigure) {
+            ((DalContextConfigure) taskContext).addTables(tableName);
+            ((DalContextConfigure) taskContext).setShardingCategory(shardingCategory);
         }
+
+        String sql = String.format(getSqlTpl(),
+                quote(tableName), insertColumns,
+                values.substring(0, values.length() - 2) + ")");
+
+        if (client instanceof DalContextClient)
+            return ((DalContextClient) client).update(sql, parameters, hints, taskContext);
+        else
+            throw new DalRuntimeException("The client is not instance of DalClient");
     }
 
     @Override

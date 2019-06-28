@@ -29,99 +29,22 @@ import com.ctrip.platform.dal.exceptions.ErrorCode;
  * 
  * @author jhhe
  */
-public class DalRequestExecutor {
-	private static AtomicReference<ExecutorService> serviceRef = new AtomicReference<>();
-	
-	public static final String MAX_POOL_SIZE = "maxPoolSize";
-	public static final String KEEP_ALIVE_TIME = "keepAliveTime";
-	
-	// To be consist with default connection max active size
-	public static final int DEFAULT_MAX_POOL_SIZE = 500;
+public class DalRequestExecutor extends AbstractRequestExecutor {
 
-	public static final int DEFAULT_KEEP_ALIVE_TIME = 10;
-	
-	private DalLogger logger = DalClientFactory.getDalLogger();
-	
-	private final static String NA = "N/A";
-	        
-	public static void init(String maxPoolSizeStr, String keepAliveTimeStr){
-		if(serviceRef.get() != null)
-			return;
-		
-		synchronized (DalRequestExecutor.class) {
-			if(serviceRef.get() != null)
-				return;
-			
-			int maxPoolSize = DEFAULT_MAX_POOL_SIZE;
-			if(maxPoolSizeStr != null)
-				maxPoolSize = Integer.parseInt(maxPoolSizeStr);
-			
-			int keepAliveTime = DEFAULT_KEEP_ALIVE_TIME;
-            if(keepAliveTimeStr != null)
-                keepAliveTime = Integer.parseInt(keepAliveTimeStr);
-			
-            ThreadPoolExecutor executer = new ThreadPoolExecutor(maxPoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
-                AtomicInteger atomic = new AtomicInteger();
-                @Override
-                public Thread newThread(Runnable r) {
-                    return new Thread(r, "DalRequestExecutor-Worker-" + this.atomic.getAndIncrement());
-                }
-            });
-            executer.allowCoreThreadTimeOut(true);
-            
-            serviceRef.set(executer);
-		}
-	} 
-	
-	public static void shutdown() {
-		if (serviceRef.get() == null)
-			return;
-		
-		synchronized (DalRequestExecutor.class) {
-			if (serviceRef.get() == null)
-				return;
-			
-			serviceRef.get().shutdown();
-			serviceRef.set(null);
-		}
-	}
-
-	public <T> T execute(final DalHints hints, final DalRequest<T> request) throws SQLException {
-		return execute(hints, request, false);
-	}
-	
-	public <T> T execute(final DalHints hints, final DalRequest<T> request, final boolean nullable) throws SQLException {
-		if (hints.isAsyncExecution()) {
-			Future<T> future = serviceRef.get().submit(new Callable<T>() {
-				public T call() throws Exception {
-					return internalExecute(hints, request, nullable);
-				}
-			});
-			
-			if(hints.isAsyncExecution())
-				hints.set(DalHintEnum.futureResult, future); 
-			return null;
-		}
-		
-		return internalExecute(hints, request, nullable);
-	}
-
-	private <T> T internalExecute(DalHints hints, DalRequest<T> request, boolean nullable) throws SQLException {
+	@Override
+	protected  <T> T internalExecute(DalHints hints, DalRequest<T> request, boolean nullable) throws SQLException {
 		T result = null;
 		Throwable error = null;
 		
 		LogContext logContext = logger.start(request);
 		
 		try {
-//			request.validate();
 			request.validateAndPrepare();
 			
-//			if(request.isCrossShard())
-//				result = crossShardExecute(logContext, hints, request);
-//			else
-//				result = nonCrossShardExecute(logContext, hints, request);
-
-			result = execute(logContext, hints, request);
+			if(request.isCrossShard())
+				result = crossShardExecute(logContext, hints, request);
+			else
+				result = nonCrossShardExecute(logContext, hints, request);
 
 			if(result == null && !nullable)
 				throw new DalException(ErrorCode.AssertNull);
@@ -138,12 +61,6 @@ public class DalRequestExecutor {
 			throw DalException.wrap(error);
 		
 		return result;
-	}
-
-	private <T> T execute(LogContext logContext, DalHints hints, DalRequest<T> request) throws Exception {
-		logContext.setSingleTask(true);
-		Callable<T> task = new RequestTaskWrapper<T>(NA, request.createTask(), logContext);
-		return task.call();
 	}
 
 	private <T> T nonCrossShardExecute(LogContext logContext, DalHints hints, DalRequest<T> request) throws Exception {
@@ -184,17 +101,6 @@ public class DalRequestExecutor {
 
 	}
 
-	private <T> void handleCallback(final DalHints hints, T result, Throwable error) {
-		DalResultCallback qc = (DalResultCallback)hints.get(DalHintEnum.resultCallback);
-		if (qc == null)
-			return;
-		
-		if(error == null)
-			qc.onResult(result);
-		else
-			qc.onError(error);
-	}
-
 	private <T> T parallelExecute(DalHints hints, Map<String, Callable<T>> tasks, ResultMerger<T> merger, LogContext logContext) throws SQLException {
 		Map<String, Future<T>> resultFutures = new HashMap<>();
 		
@@ -222,13 +128,5 @@ public class DalRequestExecutor {
 		}
 		
 		return merger.merge();
-	}
-	
-	public static int getPoolSize() {
-	    ThreadPoolExecutor executer = (ThreadPoolExecutor)serviceRef.get();
-	    if (serviceRef.get() == null)
-            return 0;
-	    
-	    return executer.getPoolSize();
 	}
 }

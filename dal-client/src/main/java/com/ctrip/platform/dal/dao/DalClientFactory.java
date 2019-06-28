@@ -17,6 +17,7 @@ import com.ctrip.platform.dal.dao.configure.DalConfigure;
 import com.ctrip.platform.dal.dao.configure.DalConfigureFactory;
 import com.ctrip.platform.dal.dao.helper.ServiceLoaderHelper;
 import com.ctrip.platform.dal.dao.status.DalStatusManager;
+import com.ctrip.platform.dal.dao.task.AbstractRequestExecutor;
 import com.ctrip.platform.dal.dao.task.DalRequestExecutor;
 import com.ctrip.platform.dal.dao.task.DalTaskFactory;
 
@@ -89,7 +90,7 @@ public class DalClientFactory {
                     config.validate();
 
                     LogEntry.init();
-                    DalRequestExecutor.init(config.getFactory().getProperty(DalRequestExecutor.MAX_POOL_SIZE),
+                    AbstractRequestExecutor.init(config.getFactory().getProperty(DalRequestExecutor.MAX_POOL_SIZE),
                             config.getFactory().getProperty(DalRequestExecutor.KEEP_ALIVE_TIME));
 
                     DalStatusManager.initialize(config);
@@ -131,9 +132,6 @@ public class DalClientFactory {
             throw new NullPointerException("Cluster name can not be null");
 
         DalConfigure config = getDalConfigure();
-
-//        // Verify if it is existed
-//        config.getDatabaseSet(logicDbName);
 
         return config.getClusterManager().getCluster(clusterName);
     }
@@ -183,7 +181,7 @@ public class DalClientFactory {
                 getDalLogger().shutdown();
                 iLogger.info("Dal Logger is shutdown");
 
-                DalRequestExecutor.shutdown();
+                AbstractRequestExecutor.shutdown();
                 iLogger.info("Dal Java Client Factory is shutdown");
 
                 DalStatusManager.shutdown();

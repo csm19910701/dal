@@ -4,19 +4,11 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
+import com.ctrip.framework.dal.cluster.client.cluster.FakeCluster;
 import com.ctrip.platform.dal.common.enums.DatabaseCategory;
 import com.ctrip.platform.dal.dao.helper.DalDefaultJpaParser;
 import com.ctrip.platform.dal.dao.sqlbuilder.*;
-import com.ctrip.platform.dal.dao.task.BulkTask;
-import com.ctrip.platform.dal.dao.task.DalBulkTaskRequest;
-import com.ctrip.platform.dal.dao.task.DalRequestExecutor;
-import com.ctrip.platform.dal.dao.task.DalSingleTaskRequest;
-import com.ctrip.platform.dal.dao.task.DalSqlTaskRequest;
-import com.ctrip.platform.dal.dao.task.DalTaskFactory;
-import com.ctrip.platform.dal.dao.task.DeleteSqlTask;
-import com.ctrip.platform.dal.dao.task.SingleTask;
-import com.ctrip.platform.dal.dao.task.TaskAdapter;
-import com.ctrip.platform.dal.dao.task.UpdateSqlTask;
+import com.ctrip.platform.dal.dao.task.*;
 import com.ctrip.platform.dal.exceptions.DalException;
 import com.ctrip.platform.dal.exceptions.ErrorCode;
 
@@ -45,7 +37,7 @@ public final class DalTableDao<T> extends TaskAdapter<T> {
     private DeleteSqlTask<T> deleteSqlTask;
     private UpdateSqlTask<T> updateSqlTask;
 
-    private DalRequestExecutor executor;
+    private RequestExecutor executor;
 
     public DalTableDao(DalParser<T> parser) {
         this(parser, DalClientFactory.getTaskFactory());
@@ -67,14 +59,17 @@ public final class DalTableDao<T> extends TaskAdapter<T> {
         this(parser, factory, new DalRequestExecutor());
     }
 
-    public DalTableDao(DalParser<T> parser, DalRequestExecutor executor) {
+    public DalTableDao(DalParser<T> parser, RequestExecutor executor) {
         this(parser, DalClientFactory.getTaskFactory(), executor);
     }
 
-    public DalTableDao(DalParser<T> parser, DalTaskFactory factory, DalRequestExecutor executor) {
+    public DalTableDao(DalParser<T> parser, DalTaskFactory factory, RequestExecutor executor) {
         initialize(parser);
         initTasks(factory);
-        this.executor = executor;
+        if (cluster instanceof FakeCluster)
+            this.executor = executor;
+        else
+            this.executor = new ClusterRequestExecutor();
     }
 
     private void initTasks(DalTaskFactory factory) {
@@ -94,6 +89,7 @@ public final class DalTableDao<T> extends TaskAdapter<T> {
         deleteSqlTask = factory.createDeleteSqlTask(parser);
         updateSqlTask = factory.createUpdateSqlTask(parser);
     }
+
 
     public DalClient getClient() {
         return client;
@@ -432,8 +428,12 @@ public final class DalTableDao<T> extends TaskAdapter<T> {
      * @throws SQLException
      */
     public int insert(DalHints hints, KeyHolder keyHolder, T daoPojo) throws SQLException {
+        if(cluster instanceof FakeCluster)
         return getSafeResult(executor.execute(setSize(hints, keyHolder, daoPojo),
                 new DalSingleTaskRequest<>(logicDbName, hints, daoPojo, singleInsertTask)));
+
+        return getSafeResult(executor.execute(setSize(hints, keyHolder, daoPojo),
+                new ClusterSingleTaskRequest<>(logicDbName, hints, daoPojo, singleInsertTask)));
     }
 
     /**
@@ -464,8 +464,12 @@ public final class DalTableDao<T> extends TaskAdapter<T> {
      * @throws SQLException
      */
     public int[] insert(DalHints hints, KeyHolder keyHolder, List<T> daoPojos) throws SQLException {
+        if (cluster instanceof FakeCluster)
+            return executor.execute(setSize(hints, keyHolder, daoPojos),
+                    new DalSingleTaskRequest<>(logicDbName, hints, daoPojos, singleInsertTask));
+
         return executor.execute(setSize(hints, keyHolder, daoPojos),
-                new DalSingleTaskRequest<>(logicDbName, hints, daoPojos, singleInsertTask));
+                new ClusterSingleTaskRequest<>(logicDbName, hints, daoPojos, singleInsertTask));
     }
 
     /**

@@ -14,7 +14,7 @@ import java.util.Set;
 import javax.persistence.Entity;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import com.ctrip.framework.dal.cluster.client.Cluster;
+import com.ctrip.platform.dal.sharding.idgen.IIdGeneratorFactory;
 import com.ctrip.platform.dal.dao.annotation.Database;
 import com.ctrip.platform.dal.dao.helper.ClassScanFilter;
 import com.ctrip.platform.dal.dao.helper.ClassScanner;
@@ -106,7 +106,7 @@ public class DalConfigureFactory implements DalConfigConstants {
                 readComponent(root, CONNECTION_LOCATOR, new DefaultDalConnectionLocator(), LOCATOR);
 
         Map<String, DatabaseSet> databaseSets = readDatabaseSets(getChildNode(root, DATABASE_SETS));
-        Map<String, ClusterNode> clusterNodes =readClusterNodes(getChildNode(root,DATABASE_SETS));
+        Map<String, ClusterNode> clusterNodes = readClusterNodes(getChildNode(root,DATABASE_SETS));
 
         locator.setup(getAllDbNames(databaseSets));
 
@@ -220,16 +220,16 @@ public class DalConfigureFactory implements DalConfigConstants {
     private DatabaseSet readDatabaseSet(Node databaseSetNode) throws Exception {
         checkAttribte(databaseSetNode, NAME, PROVIDER, SHARD_STRATEGY, SHARDING_STRATEGY);
         String shardingStrategy = "";
-        
-        if(hasAttribute(databaseSetNode, SHARD_STRATEGY))
+
+        if (hasAttribute(databaseSetNode, SHARD_STRATEGY))
             shardingStrategy = getAttribute(databaseSetNode, SHARD_STRATEGY);
-        else if(hasAttribute(databaseSetNode, SHARDING_STRATEGY))
-                shardingStrategy = getAttribute(databaseSetNode, SHARDING_STRATEGY);
-        
+        else if (hasAttribute(databaseSetNode, SHARDING_STRATEGY))
+            shardingStrategy = getAttribute(databaseSetNode, SHARDING_STRATEGY);
+
         shardingStrategy = shardingStrategy.trim();
 
         IIdGeneratorConfig idGenConfig = getIdGenConfig(databaseSetNode);
-        
+
         List<Node> databaseList = getChildNodes(databaseSetNode, ADD);
         Map<String, DataBase> databases = new HashMap<>();
         for (int i = 0; i < databaseList.size(); i++) {
@@ -348,19 +348,19 @@ public class DalConfigureFactory implements DalConfigConstants {
 
     private void checkAttribte(Node node, String... validNames) {
         NamedNodeMap map = node.getAttributes();
-        if(map == null)
+        if (map == null)
             return;
-        
-        for(int i = 0 ; i <map.getLength(); i++) {
+
+        for (int i = 0; i < map.getLength(); i++) {
             String name = map.item(i).getNodeName();
             boolean found = false;
-            for(String candidate: validNames)
-                if(name.equals(candidate)){
+            for (String candidate : validNames)
+                if (name.equals(candidate)) {
                     found = true;
                     break;
                 }
-            
-            if(!found)
+
+            if (!found)
                 throw new IllegalStateException("");
         }
     }

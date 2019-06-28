@@ -1,19 +1,13 @@
 package com.ctrip.platform.dal.dao.configure;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import com.ctrip.framework.dal.cluster.client.Cluster;
-import com.ctrip.framework.dal.cluster.client.cluster.ClusterConfig;
 import com.ctrip.framework.dal.cluster.client.cluster.DefaultCluster;
+import com.ctrip.framework.dal.cluster.client.cluster.FakeCluster;
 import com.ctrip.framework.dal.cluster.client.config.DatabaseRole;
 import com.ctrip.framework.dal.cluster.client.database.SimpleDatabaseImpl;
-import com.ctrip.framework.dal.cluster.client.shard.DatabaseShard;
 import com.ctrip.framework.dal.cluster.client.shard.DatabaseShardImpl;
 import com.ctrip.platform.dal.common.enums.DatabaseCategory;
 import com.ctrip.platform.dal.dao.strategy.DalShardingStrategy;
@@ -21,7 +15,7 @@ import com.ctrip.platform.dal.dao.strategy.ShardColModShardStrategy;
 import com.ctrip.platform.dal.exceptions.DalException;
 import com.ctrip.platform.dal.sharding.idgen.IIdGeneratorConfig;
 
-public class DatabaseSet implements ClusterConfig {
+public class DatabaseSet extends FakeCluster {
     private static final String CLASS = "class";
     private static final String ENTRY_SEPARATOR = ";";
     private static final String KEY_VALUE_SEPARATOR = "=";
@@ -123,7 +117,13 @@ public class DatabaseSet implements ClusterConfig {
         return provider;
     }
 
-    public DatabaseCategory getDatabaseCategory() {
+
+    @Override
+    public String getClusterId() {
+        return name;
+    }
+
+    public DatabaseCategory getDatabaseCategory(){
         return dbCategory;
     }
 
@@ -210,32 +210,47 @@ public class DatabaseSet implements ClusterConfig {
     }
 
 
-    public Cluster generateCluster(){
+    /*public Cluster generateCluster() {
         DefaultCluster cluster = new DefaultCluster(this);
-        DatabaseShardImpl shard = new DatabaseShardImpl(0);
 
-        if(isShardingSupported()) {
-            for (Map.Entry<String, List<DataBase>> entry : masterDbByShard.entrySet()) {
-                shard = new DatabaseShardImpl(Integer.parseInt(entry.getKey()));
-                for (DataBase dataBase : entry.getValue())
-                    shard.addDatabase(new SimpleDatabaseImpl(DatabaseRole.MASTER, dataBase.getConnectionString()));
-            }
+        Map<String, DatabaseShardImpl> localShardMap = new HashMap<>();
 
-            for (Map.Entry<String, List<DataBase>> entry : slaveDbByShard.entrySet()) {
-                shard = new DatabaseShardImpl(Integer.parseInt(entry.getKey()));
-                for (DataBase dataBase : entry.getValue())
-                    shard.addDatabase(new SimpleDatabaseImpl(DatabaseRole.SLAVE, dataBase.getConnectionString()));
+        if (isShardingSupported()) {
+            for (String shardId : masterDbByShard.keySet())
+                localShardMap.put(shardId, new DatabaseShardImpl(Integer.parseInt(shardId)));
+            for (String shardId : slaveDbByShard.keySet())
+                localShardMap.put(shardId, new DatabaseShardImpl(Integer.parseInt(shardId)));
+
+            for (Map.Entry<String, DatabaseShardImpl> outerEntry : localShardMap.entrySet())
+                for (Map.Entry<String, List<DataBase>> innerEntry : masterDbByShard.entrySet()) {
+                    if (innerEntry.getKey().equalsIgnoreCase(outerEntry.getKey()))
+                        for (DataBase dataBase : innerEntry.getValue())
+                            outerEntry.getValue().addDatabase(new SimpleDatabaseImpl(DatabaseRole.MASTER, dataBase.getConnectionString()));
+                }
+
+            for (Map.Entry<String, DatabaseShardImpl> outerEntry : localShardMap.entrySet())
+                for (Map.Entry<String, List<DataBase>> innerEntry : slaveDbByShard.entrySet()) {
+                    if (innerEntry.getKey().equalsIgnoreCase(outerEntry.getKey()))
+                        for (DataBase dataBase : innerEntry.getValue())
+                            outerEntry.getValue().addDatabase(new SimpleDatabaseImpl(DatabaseRole.SLAVE, dataBase.getConnectionString()));
+                }
+
+        } else {
+            DatabaseShardImpl databaseShard = new DatabaseShardImpl(0);
+            for (DataBase dataBase : masterDbs) {
+                databaseShard.addDatabase(new SimpleDatabaseImpl(DatabaseRole.MASTER, dataBase.getConnectionString()));
             }
-        }else {
-            for(DataBase dataBase:masterDbs){
-                shard.addDatabase(new SimpleDatabaseImpl(DatabaseRole.MASTER,dataBase.getConnectionString()));
+            for (DataBase dataBase : slaveDbs) {
+                databaseShard.addDatabase(new SimpleDatabaseImpl(DatabaseRole.SLAVE, dataBase.getConnectionString()));
             }
-            for(DataBase dataBase:slaveDbs){
-                shard.addDatabase(new SimpleDatabaseImpl(DatabaseRole.SLAVE,dataBase.getConnectionString()));
-            }
+            localShardMap.put("0", databaseShard);
         }
 
-        cluster.addDatabaseShard(shard);
+        for (DatabaseShardImpl databaseShard : localShardMap.values()) {
+            cluster.addDatabaseShard(databaseShard);
+        }
+
+        cluster.setClusterIdGenerator(idGenConfig);
         return cluster;
-    }
+    }*/
 }

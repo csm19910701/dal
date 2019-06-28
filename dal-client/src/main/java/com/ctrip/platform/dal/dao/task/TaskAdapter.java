@@ -14,19 +14,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.ctrip.framework.dal.cluster.client.cluster.FakeCluster;
+import com.ctrip.framework.dal.cluster.client.exception.UnknownShardException;
+import com.ctrip.framework.dal.cluster.client.hint.RouteHints;
+import com.ctrip.framework.dal.cluster.client.hint.RouteHintsBuilder;
 import com.ctrip.platform.dal.common.enums.DatabaseCategory;
 import com.ctrip.platform.dal.common.enums.ShardingCategory;
-import com.ctrip.platform.dal.dao.DalHintEnum;
-import com.ctrip.platform.dal.dao.DalHints;
-import com.ctrip.platform.dal.dao.DalParser;
-import com.ctrip.platform.dal.dao.StatementParameters;
-import com.ctrip.platform.dal.dao.UpdatableEntity;
+import com.ctrip.platform.dal.dao.*;
+import com.ctrip.platform.dal.exceptions.DalRuntimeException;
+import com.fasterxml.jackson.databind.cfg.HandlerInstantiator;
+import sun.util.resources.cldr.yav.CalendarData_yav_CM;
+
 import static com.ctrip.platform.dal.dao.helper.DalShardingHelper.*;
 
 public class TaskAdapter<T> extends BaseTaskAdapter implements DaoTask<T> {
 	public static final String GENERATED_KEY = "GENERATED_KEY";
 
-	//public static final String TMPL_SQL_FIND_BY = "SELECT * FROM %s WHERE %s";
+//	public static final String TMPL_SQL_FIND_BY = "SELECT * FROM %s WHERE %s";
 
 	protected static final String COLUMN_SEPARATOR = ", ";
 	protected static final String PLACE_HOLDER = "?";
@@ -58,10 +62,14 @@ public class TaskAdapter<T> extends BaseTaskAdapter implements DaoTask<T> {
 		super.initialize(parser.getDatabaseName());
 		this.parser = parser;
 		rawTableName = parser.getTableName();
-//		tableShardingEnabled = isTableShardingEnabled(logicDbName, rawTableName);
-//		initShardingCategory();
 		initColumnTypes();
-		dbCategory = getDatabaseSet(logicDbName).getDatabaseCategory();
+		if(cluster instanceof FakeCluster) {
+			tableShardingEnabled = isTableShardingEnabled(logicDbName, rawTableName);
+			initShardingCategory();
+			dbCategory = getDatabaseSet(logicDbName).getDatabaseCategory();
+		}else {
+			dbCategory = cluster.getDatabaseType() == com.ctrip.framework.dal.cluster.client.config.DatabaseType.MYSQL ? DatabaseCategory.MySql : DatabaseCategory.SqlServer;
+		}
 		initDbSpecific();
 		initSensitiveColumns();
 	}
@@ -438,6 +446,82 @@ public class TaskAdapter<T> extends BaseTaskAdapter implements DaoTask<T> {
 		for(int i = 0; i < columns.length; i++)
 			quatedColumns[i] = quote(columns[i]);
 		return quatedColumns;
+	}
+
+	protected RouteHints buildRouteHints(DalHints hints) throws SQLException {
+		RouteHintsBuilder builder = new RouteHintsBuilder();
+		if (cluster.dbShardingEnabled(rawTableName))
+			builder.setDbShards(getShard(hints));
+		if (cluster.tableShardingEnabled(rawTableName))
+			builder.setTargetTables(getTargetTable(hints));
+
+		return builder.build();
+	}
+
+	private String getShard(DalHints hints) {
+		String shard = null;
+		if (hints.is(DalHintEnum.shard)) {
+			if (shard != null)
+				return shard;
+		}
+
+
+		if (hints.is(DalHintEnum.shardValue)) {
+			try {
+				shard = cluster.getDbShardByValue(rawTableName, hints.get(DalHintEnum.shardValue));
+			} catch (UnknownShardException e) {
+				shard = null;
+			}
+			if (shard != null)
+				return shard;
+		}
+
+		if (hints.is(DalHintEnum.shardColValues)) {
+			try {
+				shard = cluster.getDbShardByParameters(rawTableName, (Map<String, Object>) hints.get(DalHintEnum.shardColValues));
+			} catch (UnknownShardException e) {
+				shard = null;
+			}
+			if (shard != null)
+				return shard;
+		}
+
+		return shard;
+	}
+
+	private String getTargetTable(DalHints hints) {
+		String table = null;
+		if (hints.is(DalHintEnum.tableShard)) {
+			try {
+				table = cluster.getTargetTableByShard(rawTableName, hints.getTableShardId());
+			} catch (UnknownShardException e) {
+				table = null;
+			}
+			if (table != null)
+				return table;
+		}
+
+		if (hints.is(DalHintEnum.tableShardValue)) {
+			try {
+				table = cluster.getTargetTableByValue(rawTableName, hints.get(DalHintEnum.tableShardValue));
+			} catch (UnknownShardException e) {
+				table = null;
+			}
+			if (table != null)
+				return table;
+		}
+
+		if (hints.is(DalHintEnum.shardColValues)) {
+			try {
+				table = cluster.getTargetTableByParameters(rawTableName, (Map<String, Object>) hints.get(DalHintEnum.shardColValues));
+			} catch (UnknownShardException e) {
+				table = null;
+			}
+			if (table != null)
+				return table;
+		}
+
+		return table;
 	}
 
 	@Override

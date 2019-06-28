@@ -23,6 +23,7 @@ import org.apache.commons.lang.StringUtils;
 public class DalConfigure {
     private String name;
     private Map<String, DatabaseSet> databaseSets = new ConcurrentHashMap<String, DatabaseSet>();
+    private Map<String, ClusterNode> clusters = new ConcurrentHashMap<>();
     private DalLogger dalLogger;
     private DalConnectionLocator locator;
     private DalTaskFactory factory;
@@ -37,15 +38,16 @@ public class DalConfigure {
             DalConnectionLocator locator, DalTaskFactory factory, DatabaseSelector selector) {
         this.name = name;
         this.databaseSets.putAll(databaseSets);
+        this.clusters.putAll(clusters);
         this.dalLogger = dalLogger;
         this.locator = locator;
         this.factory = factory;
         this.selector = selector;
         initExecutorService();
-        for(String databaseSetName:databaseSets.keySet()) {
-            clusterManager.define(new DatabaseSetDefinition(databaseSetName));
+        for (DatabaseSet dbSet : databaseSets.values()) {
+            clusterManager.importCluster(dbSet);
         }
-        for(String clusterName:clusters.keySet()) {
+        for (String clusterName : clusters.keySet()) {
             clusterManager.define(new DefaultClusterDefinition(clusterName));
         }
         clusterManager.start();

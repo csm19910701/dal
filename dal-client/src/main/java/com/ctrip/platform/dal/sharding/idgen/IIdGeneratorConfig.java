@@ -1,6 +1,8 @@
 package com.ctrip.platform.dal.sharding.idgen;
 
-public interface IIdGeneratorConfig {
+import com.ctrip.framework.dal.cluster.client.idgen.ClusterIdGenerator;
+
+public interface IIdGeneratorConfig extends ClusterIdGenerator {
 
     IdGenerator getIdGenerator(String name);
 

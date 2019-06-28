@@ -7,7 +7,6 @@ import com.ctrip.platform.dal.common.enums.DatabaseCategory;
 import com.ctrip.platform.dal.dao.DalClientFactory;
 import com.ctrip.platform.dal.dao.DalParser;
 import com.ctrip.platform.dal.dao.DalResultSetExtractor;
-import com.ctrip.platform.dal.exceptions.DalRuntimeException;
 
 public class DefaultTaskFactory implements DalTaskFactory {
 	private Map<String, String> settings;

@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.*;
 
+
 import com.ctrip.platform.dal.dao.DalHints;
 import com.ctrip.platform.dal.dao.DalParser;
 import com.ctrip.platform.dal.exceptions.DalRuntimeException;
@@ -31,7 +32,7 @@ public class InsertTaskAdapter<T> extends TaskAdapter<T> {
 	protected String columnsForInsertWithId;
 	protected List<String> validColumnsForInsert;
 	protected List<String> validColumnsForInsertWithId;
-
+	protected boolean useIdGen;
 	protected IdGenerator idGenerator;
 	
 	public void initialize(DalParser<T> parser) {
@@ -50,15 +51,23 @@ public class InsertTaskAdapter<T> extends TaskAdapter<T> {
 		columnsForInsert = combineColumns(validColumnsForInsert, COLUMN_SEPARATOR);
 		columnsForInsertWithId = combineColumns(validColumnsForInsertWithId, COLUMN_SEPARATOR);
 
+		initIdGenerator();
+	}
+
+	public void initIdGenerator() {
 		IIdGeneratorConfig idGenConfig = getDatabaseSet(logicDbName).getIdGenConfig();
 		if (idGenConfig != null) {
 			idGenerator = idGenConfig.getIdGenerator(rawTableName);
 		}
+		if (null == idGenerator || idGenerator instanceof NullIdGenerator)
+			useIdGen = false;
+		else
+			useIdGen = true;
 	}
 	
 	private List<String> buildValidColumnsForInsert() {
 		List<String> validColumns = new LinkedList<>(buildValidColumnsForInsertWithId());
-		
+//
 		if(parser.isAutoIncrement())
 			validColumns.remove(parser.getPrimaryKeyNames()[0]);
 		
@@ -79,8 +88,7 @@ public class InsertTaskAdapter<T> extends TaskAdapter<T> {
 	public Set<String> filterUnqualifiedColumns(DalHints hints, List<Map<String, ?>> daoPojos, List<T> rawPojos) {
 		Set<String> unqualifiedColumns = new HashSet<>(notInsertableColumns);
 		
-		if(parser.isAutoIncrement() && hints.isIdentityInsertDisabled() &&
-				(null == idGenerator || idGenerator instanceof NullIdGenerator))
+		if(parser.isAutoIncrement() && hints.isIdentityInsertDisabled() && !useIdGen)
 			unqualifiedColumns.add(parser.getPrimaryKeyNames()[0]);
 
 		if(hints.isInsertNullField()) {
@@ -132,7 +140,7 @@ public class InsertTaskAdapter<T> extends TaskAdapter<T> {
 	}
 
 	public void processIdentityField(DalHints hints, List<Map<String, ?>> pojos) {
-		if (parser.isAutoIncrement() && idGenerator != null && !(idGenerator instanceof NullIdGenerator)) {
+		if (parser.isAutoIncrement() && useIdGen) {
 			String identityFieldName = parser.getPrimaryKeyNames()[0];
 			int identityFieldType = getColumnType(identityFieldName);
 			boolean identityInsertDisabled = hints.isIdentityInsertDisabled();
@@ -146,7 +154,7 @@ public class InsertTaskAdapter<T> extends TaskAdapter<T> {
 		}
 	}
 
-	private void checkIdentityTypes(int identityFieldType, Number id) {
+	protected void checkIdentityTypes(int identityFieldType, Number id) {
 		boolean ok = false;
 		switch (identityFieldType) {
 			case Types.BIGINT:
