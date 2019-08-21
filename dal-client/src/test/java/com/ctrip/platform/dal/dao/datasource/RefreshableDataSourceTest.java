@@ -381,4 +381,47 @@ public class RefreshableDataSourceTest {
         Assert.assertEquals(20, listenerTwo.getStep());
 
     }
+
+    @Test
+    public void testGetConnection() throws Exception {
+        Properties p1 = new Properties();
+        p1.setProperty("userName", "root");
+        p1.setProperty("password", "111111");
+        p1.setProperty("connectionUrl", "jdbc:mysql://localhost:3306/test");
+        p1.setProperty("driverClassName", "com.mysql.jdbc.Driver");
+        DataSourceConfigure configure1 = new DataSourceConfigure("test", p1);
+
+        Properties p2 = new Properties();
+        p2.setProperty("userName", "root");
+        p2.setProperty("password", "111111");
+        p2.setProperty("connectionUrl", "jdbc:mysql://1.1.1.1:3306/test");
+        p2.setProperty("driverClassName", "com.mysql.jdbc.Driver");
+        DataSourceConfigure configure2 = new DataSourceConfigure("test", p2);
+
+        final RefreshableDataSource refreshableDataSource = new RefreshableDataSource("test", configure1);
+        DataSourceConfigureChangeEvent dataSourceConfigureChangeEvent = new DataSourceConfigureChangeEvent("test", configure2, configure1);
+        final MockDataSourceSwitchListenerOne listenerOne = new MockDataSourceSwitchListenerOne();
+        final MockDataSourceSwitchListenerTwo listenerTwo = new MockDataSourceSwitchListenerTwo();
+        refreshableDataSource.addDataSourceSwitchListener(listenerOne);
+        refreshableDataSource.addDataSourceSwitchListener(listenerTwo);
+
+        final CountDownLatch latch = new CountDownLatch(50);
+        for (int i = 0; i < 50; ++i) {
+            final int time = i;
+            executorOne.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(time + 1);
+                    } catch (InterruptedException e) {
+
+                    }
+                    refreshableDataSource.getDataSource();
+                    latch.countDown();
+                }
+            });
+        }
+        refreshableDataSource.configChanged(dataSourceConfigureChangeEvent);
+        latch.await();
+    }
 }
